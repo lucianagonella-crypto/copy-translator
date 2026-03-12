@@ -209,13 +209,10 @@ Return ONLY valid JSON (no markdown, no backticks):
 Text: ${input}`;
 
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const res = await fetch("/api/translate", {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        "x-api-key": "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",
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true"
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",

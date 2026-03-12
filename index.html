@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Product Copy Translator</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f5f3; color: #1a1a1a; min-height: 100vh; display: flex; justify-content: center; padding: 2rem 1rem; }
+  .app { width: 100%; max-width: 700px; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
+  h1 { font-size: 20px; font-weight: 500; margin-bottom: 4px; }
+  .subtitle { font-size: 14px; color: #666; }
+  .lang-toggle { display: flex; gap: 4px; }
+  .lang-btn { padding: 5px 10px; font-size: 12px; font-weight: 500; border-radius: 8px; border: 0.5px solid #d0d0d0; background: transparent; color: #666; cursor: pointer; }
+  .lang-btn.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  label { font-size: 12px; color: #666; display: block; margin-bottom: 6px; }
+  label span { color: #aaa; }
+  select, input, textarea { width: 100%; padding: 8px 10px; border-radius: 8px; border: 0.5px solid #d0d0d0; background: #fff; color: #1a1a1a; font-size: 14px; font-family: inherit; outline: none; }
+  select:focus, input:focus, textarea:focus { border-color: #999; }
+  textarea { resize: vertical; line-height: 1.6; }
+  .field { margin-bottom: 12px; }
+  .char-count { text-align: right; font-size: 12px; color: #aaa; margin-top: 4px; }
+  .btn-translate { width: 100%; padding: 10px; border-radius: 8px; border: none; background: #1a1a1a; color: #fff; font-size: 14px; font-weight: 500; cursor: pointer; }
+  .btn-translate:disabled { background: #ddd; color: #aaa; cursor: not-allowed; }
+  .spinner-row { display: flex; gap: 8px; align-items: center; color: #666; font-size: 14px; margin-top: 20px; }
+  .spinner { width: 16px; height: 16px; border: 2px solid #ddd; border-top-color: #1a1a1a; border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error { margin-top: 16px; padding: 12px; border-radius: 8px; background: #fff0f0; color: #c00; font-size: 14px; }
+  .results { margin-top: 24px; display: flex; flex-direction: column; gap: 16px; }
+  .card { background: #fff; border: 0.5px solid #e0e0e0; border-radius: 12px; padding: 1rem 1.25rem; }
+  .card-alt { background: #f9f9f7; border: 0.5px solid #e0e0e0; border-radius: 12px; padding: 1rem 1.25rem; }
+  .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .card-label { font-size: 11px; font-weight: 500; color: #999; text-transform: uppercase; letter-spacing: 0.06em; }
+  .btn-copy { font-size: 12px; padding: 4px 10px; border-radius: 8px; border: 0.5px solid #d0d0d0; background: transparent; color: #666; cursor: pointer; }
+  .card-text { font-size: 15px; line-height: 1.7; white-space: pre-wrap; }
+  .card-alt .card-text { font-size: 14px; }
+  .notes { padding: 1rem 1.25rem; border-left: 2px solid #ddd; }
+  .notes-label { font-size: 11px; font-weight: 500; color: #999; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+  .note { font-size: 13px; color: #666; line-height: 1.6; margin: 4px 0; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div>
+      <h1 id="ui-title">Product copy translator</h1>
+      <p class="subtitle" id="ui-subtitle">Translates using industry-specific vocabulary</p>
+    </div>
+    <div class="lang-toggle">
+      <button class="lang-btn active" onclick="setLang('en')">EN</button>
+      <button class="lang-btn" onclick="setLang('es')">ES</button>
+      <button class="lang-btn" onclick="setLang('pt')">PT</button>
+    </div>
+  </div>
+
+  <div class="grid-3">
+    <div><label id="ui-industry">Industry</label><select id="industry"></select></div>
+    <div><label id="ui-tone">Tone</label><select id="tone"></select></div>
+    <div><label id="ui-targetLang">Translate to</label>
+      <select id="targetLang">
+        <option value="english">English</option>
+        <option value="spanish">Español</option>
+        <option value="portuguese">Português</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="field" style="margin-top:12px">
+    <label id="ui-context">Product / brand context <span id="ui-optional">(optional)</span></label>
+    <input type="text" id="context" placeholder="e.g. B2B project management tool for architects"/>
+  </div>
+
+  <div class="field">
+    <label id="ui-customPrompt">Style instructions <span>(optional)</span></label>
+    <textarea id="customPrompt" rows="2" placeholder="e.g. Short sentences, no jargon, active voice only..."></textarea>
+  </div>
+
+  <div class="field">
+    <label id="ui-inputLabel">Text to translate</label>
+    <textarea id="inputText" rows="6" oninput="onInput()"></textarea>
+    <div class="char-count"><span id="charCount">0</span> chars</div>
+  </div>
+
+  <button class="btn-translate" id="translateBtn" onclick="doTranslate()" disabled>Translate</button>
+
+  <div class="spinner-row" id="spinner" style="display:none">
+    <div class="spinner"></div>
+    <span id="ui-translating">Translating...</span>
+  </div>
+  <div class="error" id="errorBox" style="display:none"></div>
+
+  <div class="results" id="results" style="display:none">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-label" id="ui-translation">Translation</span>
+        <button class="btn-copy" onclick="doCopy('main')" id="copyMain">Copy</button>
+      </div>
+      <p class="card-text" id="outputMain"></p>
+    </div>
+    <div class="card-alt" id="altCard">
+      <div class="card-header">
+        <span class="card-label" id="ui-alternative">Alternative version</span>
+        <button class="btn-copy" onclick="doCopy('alt')" id="copyAlt">Copy</button>
+      </div>
+      <p class="card-text" id="outputAlt"></p>
+    </div>
+    <div class="notes" id="notesCard">
+      <p class="notes-label" id="ui-notes">Copywriter notes</p>
+      <div id="outputNotes"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const INDUSTRIES = [
+  {value:"saas",en:"SaaS / Software",es:"SaaS / Software",pt:"SaaS / Software"},
+  {value:"ecommerce",en:"E-commerce / Retail",es:"E-commerce / Retail",pt:"E-commerce / Varejo"},
+  {value:"fintech",en:"Fintech / Finance",es:"Fintech / Finanzas",pt:"Fintech / Finanças"},
+  {value:"health",en:"Health & Wellness",es:"Salud & Bienestar",pt:"Saúde & Bem-estar"},
+  {value:"beauty",en:"Beauty / Cosmetics",es:"Belleza / Cosmética",pt:"Beleza / Cosméticos"},
+  {value:"food",en:"Food & Beverage",es:"Alimentos & Bebidas",pt:"Alimentos & Bebidas"},
+  {value:"fashion",en:"Fashion / Apparel",es:"Moda / Indumentaria",pt:"Moda / Vestuário"},
+  {value:"real_estate",en:"Real Estate",es:"Bienes Raíces",pt:"Imóveis"},
+  {value:"education",en:"EdTech / Education",es:"EdTech / Educación",pt:"EdTech / Educação"},
+  {value:"ai",en:"AI / Machine Learning",es:"IA / Machine Learning",pt:"IA / Machine Learning"},
+  {value:"crypto",en:"Web3 / Crypto",es:"Web3 / Cripto",pt:"Web3 / Cripto"},
+  {value:"travel",en:"Travel & Hospitality",es:"Turismo & Hospitalidad",pt:"Turismo & Hotelaria"},
+  {value:"fitness",en:"Fitness / Sports",es:"Fitness / Deportes",pt:"Fitness / Esportes"},
+];
+const TONES = [
+  {value:"professional",en:"Professional",es:"Profesional",pt:"Profissional"},
+  {value:"conversational",en:"Conversational",es:"Conversacional",pt:"Conversacional"},
+  {value:"bold",en:"Bold & punchy",es:"Directo & contundente",pt:"Direto & impactante"},
+  {value:"minimalist",en:"Minimalist",es:"Minimalista",pt:"Minimalista"},
+  {value:"luxury",en:"Luxury / Premium",es:"Lujo / Premium",pt:"Luxo / Premium"},
+];
+const UI = {
+  en:{title:"Product copy translator",subtitle:"Translates using industry-specific vocabulary",industry:"Industry",tone:"Tone",targetLang:"Translate to",context:"Product / brand context",optional:"optional",customPrompt:"Style instructions",inputLabel:"Text to translate",translateBtn:"Translate",translating:"Translating...",translation:"Translation",alternative:"Alternative version",notes:"Copywriter notes",copy:"Copy",copied:"Copied!",error:"Something went wrong. Please try again."},
+  es:{title:"Traductor de copy para productos",subtitle:"Traduce usando vocabulario propio de cada industria",industry:"Industria",tone:"Tono",targetLang:"Traducir a",context:"Contexto del producto / marca",optional:"opcional",customPrompt:"Instrucciones de estilo",inputLabel:"Texto a traducir",translateBtn:"Traducir",translating:"Traduciendo...",translation:"Traducción",alternative:"Versión alternativa",notes:"Notas del copywriter",copy:"Copiar",copied:"¡Copiado!",error:"Algo salió mal. Intentá de nuevo."},
+  pt:{title:"Tradutor de copy para produtos",subtitle:"Traduz usando vocabulário específico de cada setor",industry:"Setor",tone:"Tom",targetLang:"Traduzir para",context:"Contexto do produto / marca",optional:"opcional",customPrompt:"Instruções de estilo",inputLabel:"Texto para traduzir",translateBtn:"Traduzir",translating:"Traduzindo...",translation:"Tradução",alternative:"Versão alternativa",notes:"Notas do copywriter",copy:"Copiar",copied:"Copiado!",error:"Algo deu errado. Tente novamente."},
+};
+
+let lang = "en", outputData = {};
+
+function setLang(l) {
+  lang = l;
+  document.querySelectorAll(".lang-btn").forEach(b => b.classList.toggle("active", b.textContent === l.toUpperCase()));
+  const t = UI[l];
+  document.getElementById("ui-title").textContent = t.title;
+  document.getElementById("ui-subtitle").textContent = t.subtitle;
+  document.getElementById("ui-industry").childNodes[0].textContent = t.industry;
+  document.getElementById("ui-tone").childNodes[0].textContent = t.tone;
+  document.getElementById("ui-targetLang").textContent = t.targetLang;
+  document.getElementById("ui-context").childNodes[0].textContent = t.context + " ";
+  document.getElementById("ui-optional").textContent = "(" + t.optional + ")";
+  document.getElementById("ui-customPrompt").childNodes[0].textContent = t.customPrompt + " ";
+  document.getElementById("ui-inputLabel").textContent = t.inputLabel;
+  document.getElementById("translateBtn").textContent = t.translateBtn;
+  document.getElementById("ui-translating").textContent = t.translating;
+  document.getElementById("ui-translation").textContent = t.translation;
+  document.getElementById("ui-alternative").textContent = t.alternative;
+  document.getElementById("ui-notes").textContent = t.notes;
+  document.getElementById("copyMain").textContent = t.copy;
+  document.getElementById("copyAlt").textContent = t.copy;
+  populateSelects();
+}
+
+function populateSelects() {
+  const iSel = document.getElementById("industry");
+  const tSel = document.getElementById("tone");
+  const iVal = iSel.value, tVal = tSel.value;
+  iSel.innerHTML = INDUSTRIES.map(i => `<option value="${i.value}">${i[lang]}</option>`).join("");
+  tSel.innerHTML = TONES.map(t => `<option value="${t.value}">${t[lang]}</option>`).join("");
+  if (iVal) iSel.value = iVal;
+  if (tVal) tSel.value = tVal;
+}
+
+function onInput() {
+  const v = document.getElementById("inputText").value;
+  document.getElementById("charCount").textContent = v.length;
+  document.getElementById("translateBtn").disabled = !v.trim();
+}
+
+async function doTranslate() {
+  const input = document.getElementById("inputText").value.trim();
+  if (!input) return;
+  const industry = document.getElementById("industry").value;
+  const tone = document.getElementById("tone").value;
+  const targetLang = document.getElementById("targetLang").value;
+  const context = document.getElementById("context").value.trim();
+  const customPrompt = document.getElementById("customPrompt").value.trim();
+  const industryLabel = INDUSTRIES.find(i => i.value === industry)?.[lang] || "";
+  const toneLabel = TONES.find(t => t.value === tone)?.[lang] || "";
+  const langFull = {english:"English",spanish:"Spanish",portuguese:"Brazilian Portuguese"}[targetLang];
+
+  document.getElementById("translateBtn").disabled = true;
+  document.getElementById("spinner").style.display = "flex";
+  document.getElementById("errorBox").style.display = "none";
+  document.getElementById("results").style.display = "none";
+
+  const prompt = `You are an expert copywriter for the ${industryLabel} industry. Translate the following copy into ${langFull}, using vocabulary native to the ${industryLabel} space.
+${context ? `Product/brand context: ${context}` : ""}
+Tone: ${toneLabel}
+${customPrompt ? `Style instructions: ${customPrompt}` : ""}
+Return ONLY valid JSON (no markdown, no backticks):
+{"translation":"...","notes":["..."],"alternativeVersion":"..."}
+Text: ${input}`;
+
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": "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",
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 1000,
+        messages: [{role:"user", content: prompt}]
+      })
+    });
+    const data = await res.json();
+    const raw = data.content?.map(b => b.text || "").join("").trim();
+    const clean = raw.replace(/```json|```/g, "").trim();
+    outputData = JSON.parse(clean);
+    document.getElementById("outputMain").textContent = outputData.translation || "";
+    document.getElementById("outputAlt").textContent = outputData.alternativeVersion || "";
+    document.getElementById("altCard").style.display = outputData.alternativeVersion ? "" : "none";
+    const notesEl = document.getElementById("outputNotes");
+    notesEl.innerHTML = "";
+    (outputData.notes || []).forEach(n => {
+      const p = document.createElement("p");
+      p.className = "note"; p.textContent = "— " + n;
+      notesEl.appendChild(p);
+    });
+    document.getElementById("notesCard").style.display = outputData.notes?.length ? "" : "none";
+    document.getElementById("results").style.display = "flex";
+  } catch(e) {
+    document.getElementById("errorBox").textContent = UI[lang].error;
+    document.getElementById("errorBox").style.display = "block";
+  }
+  document.getElementById("spinner").style.display = "none";
+  document.getElementById("translateBtn").disabled = false;
+}
+
+function doCopy(key) {
+  const text = key === "main" ? outputData.translation : outputData.alternativeVersion;
+  navigator.clipboard.writeText(text || "");
+  const btn = document.getElementById(key === "main" ? "copyMain" : "copyAlt");
+  btn.textContent = UI[lang].copied;
+  setTimeout(() => btn.textContent = UI[lang].copy, 2000);
+}
+
+populateSelects();
+</script>
+</body>
+</html>
